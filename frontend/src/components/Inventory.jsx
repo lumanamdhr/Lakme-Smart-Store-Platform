@@ -445,6 +445,40 @@ function Inventory({ role }) {
     }
   };
 
+  //onsale part functions
+  const toggleSale = async (product) => {
+  const token = localStorage.getItem("access_token");
+
+  await fetch(`http://127.0.0.1:8000/products/${product.id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      on_sale: !product.on_sale,
+      discount_percent: !product.on_sale ? product.discount_percent || 10 : 0,
+    }),
+  });
+
+  fetchInventory(); // reload the table so the UI reflects the change
+};
+
+const updateDiscount = async (product, value) => {
+  const token = localStorage.getItem("access_token");
+
+  await fetch(`http://127.0.0.1:8000/products/${product.id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ discount_percent: Number(value) }),
+  });
+
+  fetchInventory();
+};
+
   return (
     <section className="relative">
 
@@ -794,6 +828,35 @@ function Inventory({ role }) {
                         {/* Price */}
                         <td className="px-6 py-5 text-sm font-medium text-slate-900">
                           Rs. {product.price}
+                        </td>
+
+                        {/* On Sale */}
+                        <td className="px-6 py-5">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => toggleSale(product)}
+                              className={`relative h-6 w-11 cursor-pointer rounded-full transition ${
+                                product.on_sale ? "bg-rose-500" : "bg-stone-200"
+                              }`}
+                            >
+                              <span
+                                className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition ${
+                                  product.on_sale ? "left-5" : "left-0.5"
+                                }`}
+                              />
+                            </button>
+
+                            {product.on_sale && (
+                              <input
+                                type="number"
+                                min="0"
+                                max="90"
+                                value={product.discount_percent}
+                                onChange={(e) => updateDiscount(product, e.target.value)}
+                                className="w-16 rounded-lg border border-stone-200 px-2 py-1 text-xs"
+                              />
+                            )}
+                          </div>
                         </td>
 
 

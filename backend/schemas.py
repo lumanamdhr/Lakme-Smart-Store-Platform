@@ -17,6 +17,8 @@ class ProductUpdate(BaseModel):
     price: float | None = None
     stock_quantity: int | None = None
     reorder_level: int | None = None
+    on_sale: bool | None = None
+    discount_percent: int | None = None
 
 class ProductResponse(BaseModel):
     id: int
@@ -26,6 +28,8 @@ class ProductResponse(BaseModel):
     price: float
     stock_quantity: int
     reorder_level: int
+    on_sale: bool
+    discount_percent: int
     image: str | None
 
     class Config:

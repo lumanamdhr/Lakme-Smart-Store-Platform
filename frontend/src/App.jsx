@@ -456,6 +456,7 @@ return (
         onCartClick={() => setIsCartOpen(true)}
         onHomeClick={() => setCurrentPage("home")}
         onOpenShop={openShop}
+        onViewDetails={handleViewDetails}
         onSearch={handleSearch}
         cartCount={cartCount}
         isLoggedIn={isLoggedIn}
@@ -627,7 +628,9 @@ return (
         onCartUpdate={fetchCartCount}
       />
 
-      <ChatWidget onViewDetails={handleViewDetails} />
+      {userRole !== "admin" && userRole !== "employee" && (
+        <ChatWidget onViewDetails={handleViewDetails} />
+      )}
 
       {/* Login sliding panel 
       <Login

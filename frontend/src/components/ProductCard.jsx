@@ -40,9 +40,21 @@ function ProductCard({
 
         <div className="mt-4 flex items-center justify-between">
 
-          <p className="text-lg font-semibold text-gray-900">
+          {product.on_sale && product.discount_percent > 0 ? (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-400 line-through">
+                Rs. {product.price}
+              </span>
+              <span className="font-semibold text-rose-600">
+                Rs. {Math.round(product.price * (1 - product.discount_percent / 100))}
+              </span>
+            </div>
+          ) : (
+            <span className="font-semibold text-gray-900">Rs. {product.price}</span>
+          )}
+          {/*<p className="text-lg font-semibold text-gray-900">
             Rs. {product.price}
-          </p>
+          </p>*/}
 
           {product.stock_quantity === 0 ? (
             <span className="text-xs font-semibold text-red-500">

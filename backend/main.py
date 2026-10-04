@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from jose import jwt
 from datetime import date, timedelta
 
+from pricing import get_effective_price
 from chatbot import get_response
 from recommender import get_recommendations
 from database import engine, get_db ,Base #import engine and base we created in db.py
@@ -318,7 +319,8 @@ def get_cart(
 
         if product is not None:
 
-            subtotal = product.price * cart_item.quantity
+            unit_price = get_effective_price(product)
+            subtotal = unit_price * cart_item.quantity
             total += subtotal
 
             items.append({ #adds product to our item list
@@ -326,7 +328,7 @@ def get_cart(
                 "product_id": product.id,
                 "name": product.name,
                 "category": product.category,
-                "price": product.price,
+                "price": unit_price,
                 "quantity": cart_item.quantity,
                 "subtotal": subtotal,
                 "image": product.image
@@ -819,8 +821,7 @@ def checkout(
                 detail=f"Not enough stock for {product.name}"
             )
 
-        total_amount += product.price * item.quantity
-
+        total_amount += get_effective_price(product) * item.quantity
     # Create the sale
     new_sale = Sale(
         customer_id=current_user.id,
@@ -841,13 +842,14 @@ def checkout(
             .first()
         )
 
-        subtotal = product.price * item.quantity
+        unit_price = get_effective_price(product)
+        subtotal = unit_price * item.quantity
 
         sale_item = SaleItem(
             sale_id=new_sale.id,
             product_id=product.id,
             quantity=item.quantity,
-            price=product.price,
+            price=unit_price,
             subtotal=subtotal
         )
 

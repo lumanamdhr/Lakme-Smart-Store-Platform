@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Text, ForeignKey, DateTime, Date
+from sqlalchemy import Column, Integer, String, Float, Text, ForeignKey, DateTime, Date, Boolean
 from database import Base
 from datetime import datetime
 
@@ -14,6 +14,8 @@ class Product(Base):
     reorder_level = Column(Integer, nullable=False, default=10)
     # Stores the path of the product image
     image = Column(String(255), nullable=True)
+    on_sale = Column(Boolean, default=False)
+    discount_percent = Column(Integer, default=0)
 class Cart(Base):
     __tablename__ = "carts"
 

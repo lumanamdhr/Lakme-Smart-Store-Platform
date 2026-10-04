@@ -171,7 +171,7 @@ function Footer({ onNavigate }) {
                 />
 
                 <span className="text-sm text-white/60">
-                  support@example.com
+                  LakmeCosmetics@gmail.com
                 </span>
 
               </div>
@@ -184,7 +184,7 @@ function Footer({ onNavigate }) {
                 />
 
                 <span className="text-sm text-white/60">
-                  +977 9800000000
+                  +977 9860673252
                 </span>
 
               </div>

@@ -7,6 +7,13 @@ function CartDrawer({
   onCheckout,
   onCartUpdate,
 }) {
+  const getEffectivePrice = (item) => {
+    if (item.on_sale && item.discount_percent > 0) {
+      return item.price * (1 - item.discount_percent / 100);
+    }
+    return item.price;
+  };
+
   const [items, setItems] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -45,9 +52,9 @@ function CartDrawer({
         const guestTotal =
           guestItems.reduce(
             (sum, item) =>
-              sum +
-              Number(item.price) *
-                Number(item.quantity),
+             sum +
+              Number(getEffectivePrice(item)) *
+              Number(item.quantity),
             0
           );
 
@@ -474,7 +481,7 @@ function CartDrawer({
                         </h3>
 
                         <p className="mt-1 text-sm text-gray-600">
-                          Rs. {item.price}
+                          Rs. {getEffectivePrice(item)}
                         </p>
 
 

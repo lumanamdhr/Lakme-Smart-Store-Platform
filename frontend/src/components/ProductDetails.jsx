@@ -87,9 +87,20 @@ function ProductDetails({
               {product.name}
             </h1>
 
+            {product.on_sale && product.discount_percent > 0 ? (
+            <div className="mt-5 flex items-center gap-3">
+              <span className="text-lg text-gray-400 line-through">
+                Rs. {product.price}
+              </span>
+              <span className="text-2xl font-semibold text-rose-600">
+                Rs. {Math.round(product.price * (1 - product.discount_percent / 100))}
+              </span>
+            </div>
+          ) : (
             <p className="mt-5 text-2xl font-semibold text-gray-900">
               Rs. {product.price}
             </p>
+          )}
 
             <div className="mt-5 h-px bg-stone-100" />
 

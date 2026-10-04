@@ -63,6 +63,7 @@ function Navbar({ //props that works when clicked
   onCartClick,
   onHomeClick,
   onOpenShop,
+  onViewDetails,
   onSearch,
   cartCount,
   isLoggedIn,
@@ -75,7 +76,31 @@ function Navbar({ //props that works when clicked
   // Which category dropdown is currently open (null = none)
   const [openMenu, setOpenMenu] = useState(null);
 
-  const [showNavbar, setShowNavbar] = useState(true);
+//search part
+const [allProducts, setAllProducts] = useState([]);
+const [showSuggestions, setShowSuggestions] = useState(false);
+
+useEffect(() => {
+  const fetchProducts = async () => {
+    try {
+      const response = await fetch("http://127.0.0.1:8000/products");
+      const data = await response.json();
+      if (response.ok) setAllProducts(data);
+    } catch (error) {
+      console.error("Failed to load products for search:", error);
+    }
+  };
+
+  fetchProducts();
+}, []);
+
+const suggestions = searchTerm.trim()
+  ? allProducts
+      .filter((p) => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
+      .slice(0, 5)
+  : [];
+
+const [showNavbar, setShowNavbar] = useState(true);
 const [lastScrollY, setLastScrollY] = useState(0);
 
 useEffect(() => {
@@ -165,7 +190,15 @@ useEffect(() => {
           </button>
 
           {/* Search Bar */}
-          <div className="relative ml-auto hidden w-full max-w-xs md:block mr-3">
+          <div 
+          className="relative ml-auto hidden w-full max-w-xs md:block mr-3"
+          onFocus={() => setShowSuggestions(true)}
+          onBlur={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget)) { //related target tells us what's receiving focus next
+              setShowSuggestions(false);
+            }
+          }}
+          >
 
             <Search
               size={16}
@@ -185,6 +218,38 @@ useEffect(() => {
               placeholder="Search products..."
               className="w-full rounded-full border border-stone-200 bg-stone-50 py-2 pl-10 pr-4 text-sm text-gray-700 outline-none transition focus:border-rose-300 focus:bg-white"
             />
+
+            {showSuggestions && suggestions.length > 0 && (
+              <div className="absolute left-0 top-full z-50 mt-2 w-full overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-xl">
+                {suggestions.map((product) => (
+                  <button
+                    key={product.id}
+                    onClick={() => {
+                      onViewDetails(product);
+                      setShowSuggestions(false);
+                    }}
+                    className="flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left transition hover:bg-rose-50"
+                  >
+                    <img
+                      src={`http://127.0.0.1:8000${product.image}`}
+                      alt={product.name}
+                      className="h-10 w-10 rounded-lg object-cover"
+                    />
+
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-gray-900">
+                        {product.name}
+                      </p>
+                      <p className="text-xs text-gray-500">{product.category}</p>
+                    </div>
+
+                    <span className="shrink-0 text-sm font-semibold text-rose-600">
+                      Rs. {product.price}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
 
           </div>
 

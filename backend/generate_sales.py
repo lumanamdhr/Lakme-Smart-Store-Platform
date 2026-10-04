@@ -95,7 +95,7 @@ def generate_sales(db):
         sale = Sale(
             customer_id=customer.id,
             total_amount=0,  # we'll fill this in once we know the items
-            payment_method=random.choice(["cash", "card", "esewa"]),
+            payment_method=random.choice(["cash", "esewa", "khalti"]),
             status="completed",
             created_at=sale_date,
         )
