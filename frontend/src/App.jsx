@@ -22,6 +22,7 @@ import Shop from "./components/Shop";
 import Auth from "./components/Auth";
 import ResetPassword from "./components/ResetPassword";
 import ChatWidget from "./components/ChatWidget";
+import KhaltiVerify from "./components/KhaltiVerify";
 
 function App() {
 
@@ -445,6 +446,16 @@ const handleSearch = () => {
 const handleClearSearch = () => {
   setSearchTerm("");
 };
+
+const [showKhaltiVerify, setShowKhaltiVerify] = useState(
+  () => window.location.pathname === "/khalti/verify"
+);
+
+if (showKhaltiVerify) {
+  return (
+    <KhaltiVerify onDone={() => { setShowKhaltiVerify(false); setCurrentPage("home"); }} />
+  );
+}
 
 return (
     <div className="min-h-screen bg-white text-gray-900">

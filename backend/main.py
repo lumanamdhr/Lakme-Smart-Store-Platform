@@ -7,12 +7,14 @@ from fastapi.staticfiles import StaticFiles
 
 import os
 import uuid
+import time
 from pathlib import Path
 
 from pydantic import BaseModel
 from jose import jwt
 from datetime import date, timedelta
 
+from khalti import initiate_khalti_payment, lookup_khalti_payment
 from pricing import get_effective_price
 from chatbot import get_response
 from recommender import get_recommendations
@@ -872,6 +874,88 @@ def checkout(
         "payment_method": new_sale.payment_method,
         "status": new_sale.status
     }
+
+#khalti payment checkout
+@app.post("/payments/khalti/initiate") #initiate only checks stock and asks for a payment link and never touches database
+def khalti_initiate(
+    current_user: Customer = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    cart = db.query(Cart).filter(Cart.customer_id == current_user.id).first()
+    if cart is None:
+        raise HTTPException(status_code=404, detail="Cart not found")
+
+    cart_items = db.query(CartItem).filter(CartItem.cart_id == cart.id).all()
+    if not cart_items:
+        raise HTTPException(status_code=400, detail="Cart is empty")
+
+    total_amount = 0
+    for item in cart_items:
+        product = db.query(Product).filter(Product.id == item.product_id).first()
+        if product is None:
+            raise HTTPException(status_code=404, detail=f"Product {item.product_id} not found")
+        if product.stock_quantity < item.quantity:
+            raise HTTPException(status_code=400, detail=f"Not enough stock for {product.name}")
+        total_amount += get_effective_price(product) * item.quantity
+
+    purchase_order_id = f"order-{current_user.id}-{int(time.time())}"
+    khalti_response = initiate_khalti_payment(total_amount, purchase_order_id, current_user)
+
+    return {
+        "payment_url": khalti_response["payment_url"],
+        "pidx": khalti_response["pidx"],
+    }
+
+
+@app.post("/payments/khalti/verify") #it creats the sales, decrements stock and clears the cart
+def khalti_verify(
+    pidx: str,
+    current_user: Customer = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    result = lookup_khalti_payment(pidx)
+
+    if result.get("status") != "Completed":
+        return {"success": False, "status": result.get("status"), "message": "Payment was not completed."}
+
+    cart = db.query(Cart).filter(Cart.customer_id == current_user.id).first()
+    if cart is None:
+        raise HTTPException(status_code=404, detail="Cart not found")
+
+    cart_items = db.query(CartItem).filter(CartItem.cart_id == cart.id).all()
+    if not cart_items:
+        return {"success": True, "message": "Order already processed."}
+
+    total_amount = sum(
+        get_effective_price(db.query(Product).filter(Product.id == i.product_id).first()) * i.quantity
+        for i in cart_items
+    )
+
+    new_sale = Sale(
+        customer_id=current_user.id,
+        total_amount=total_amount,
+        payment_method="khalti",
+        status="processing",  # payment confirmed by Khalti; now preparing the order
+    )
+    db.add(new_sale)
+    db.flush()
+
+    for item in cart_items:
+        product = db.query(Product).filter(Product.id == item.product_id).first()
+        unit_price = get_effective_price(product)
+        subtotal = unit_price * item.quantity
+
+        db.add(SaleItem(
+            sale_id=new_sale.id, product_id=product.id,
+            quantity=item.quantity, price=unit_price, subtotal=subtotal,
+        ))
+        product.stock_quantity -= item.quantity
+        db.delete(item)
+
+    db.commit()
+    db.refresh(new_sale)
+
+    return {"success": True, "sale_id": new_sale.id, "total_amount": new_sale.total_amount}
 
 #Dashboards
 @app.get("/dashboard/inventory")

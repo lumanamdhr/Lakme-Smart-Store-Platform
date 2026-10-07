@@ -30,6 +30,34 @@ function Checkout({ onHomeClick, onOrderComplete }) {
       return;
     }
 
+    if (paymentMethod === "khalti") {
+      try {
+        const khaltiResponse = await fetch(
+          "http://127.0.0.1:8000/payments/khalti/initiate",
+          {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+
+        const khaltiData = await khaltiResponse.json();
+
+        if (!khaltiResponse.ok) {
+          setMessage(khaltiData.detail || "Could not start Khalti payment.");
+          setLoading(false);
+          return;
+        }
+
+        window.location.href = khaltiData.payment_url; // send the browser to Khalti's page
+        return; // stop here — this function ends; it never reaches the /checkout call below
+      } catch (error) {
+        console.error("Khalti initiate error:", error);
+        setMessage("Unable to connect to server.");
+        setLoading(false);
+        return;
+      }
+    }
+
     try {
       const response = await fetch(
         "http://127.0.0.1:8000/checkout",

@@ -18,6 +18,7 @@ INTENT_EXAMPLES = {
         "search for eyeshadow",
         "do you have eyeshadow",
         "is eyeshadow available",
+        "do you have sunscream"
     ],
     "recommend": [
         "what goes well with this",
