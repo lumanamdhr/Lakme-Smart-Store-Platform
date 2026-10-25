@@ -37,6 +37,12 @@ function Sales( {role} ) {
   // Stores an error message
   const [message, setMessage] = useState("");
 
+  // Restock panel (low / out-of-stock products)
+  const [restockProducts, setRestockProducts] = useState([]);
+  const [restockAmounts, setRestockAmounts] = useState({});
+  const [restockMessage, setRestockMessage] = useState("");
+  const [restockLoading, setRestockLoading] = useState(true);
+
 
   // =========================================================
   // FETCH SALES DASHBOARD DATA
@@ -150,12 +156,88 @@ const updateSaleStatus = async (saleId, newStatus) => {
 };
 
   // =========================================================
+  // RESTOCK
+  // =========================================================
+
+  const loadRestockList = async () => {
+    try {
+      const response = await fetch(
+        "http://127.0.0.1:8000/dashboard/inventory/details"
+      );
+      const data = await response.json();
+
+      if (response.ok) {
+        const out = data.out_of_stock_products.map((p) => ({
+          id: p.id,
+          name: p.name,
+          stock: 0,
+          reorderLevel: null,
+          status: "Out of stock",
+        }));
+
+        const low = data.low_stock_products.map((p) => ({
+          id: p.id,
+          name: p.name,
+          stock: p.stock_quantity,
+          reorderLevel: p.reorder_level,
+          status: "Low stock",
+        }));
+
+        setRestockProducts([...out, ...low]); // out-of-stock first
+      }
+    } catch (error) {
+      console.error("Restock load error:", error);
+    } finally {
+      setRestockLoading(false);
+    }
+  };
+
+  const handleRestock = async (productId) => {
+    const quantity = Number(restockAmounts[productId]);
+
+    if (!quantity || quantity <= 0) {
+      setRestockMessage("Enter a quantity greater than zero.");
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem("access_token");
+
+      const response = await fetch(
+        `http://127.0.0.1:8000/products/${productId}/restock`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ quantity }),
+        }
+      );
+
+      if (!response.ok) {
+        const data = await response.json();
+        setRestockMessage(data.detail || "Unable to restock.");
+        return;
+      }
+
+      setRestockMessage("Stock updated.");
+      setRestockAmounts((prev) => ({ ...prev, [productId]: "" }));
+      loadRestockList(); // refresh the list
+    } catch (error) {
+      console.error("Restock error:", error);
+      setRestockMessage("Unable to connect to server.");
+    }
+  };
+
+  // =========================================================
   // LOAD SALES DATA WHEN COMPONENT OPENS
   // =========================================================
 
   useEffect(() => {
 
     fetchSales();
+    loadRestockList();
 
   }, []);
 
@@ -452,10 +534,101 @@ const normalizedPaymentBreakdown = paymentBreakdown.reduce(
       </div>
       
           
-       {/* =====================================================
+
+        {/* =====================================================
+          RESTOCK
+          ===================================================== */}
+    {isAdmin && (
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-200 px-6 py-5">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+            Inventory
+          </p>
+          <h2 className="mt-2 text-lg font-semibold text-slate-900">
+            Restock Products
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Products that are low or out of stock. Add stock when a delivery arrives.
+          </p>
+        </div>
+
+        {restockMessage && (
+          <p className="border-b border-slate-100 bg-slate-50 px-6 py-3 text-sm text-slate-600">
+            {restockMessage}
+          </p>
+        )}
+
+        {restockLoading ? (
+          <p className="px-6 py-8 text-sm text-slate-500">Loading...</p>
+        ) : restockProducts.length === 0 ? (
+          <p className="px-6 py-8 text-sm text-slate-500">
+            All products are well stocked.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-6 py-4 font-semibold">Product</th>
+                  <th className="px-6 py-4 font-semibold">Status</th>
+                  <th className="px-6 py-4 font-semibold">Current Stock</th>
+                  <th className="px-6 py-4 font-semibold">Reorder Level</th>
+                  <th className="px-6 py-4 font-semibold">Restock</th>
+                </tr>
+              </thead>
+
+              <tbody className="divide-y divide-slate-100">
+                {restockProducts.map((p) => (
+                  <tr key={p.id} className="transition hover:bg-slate-50">
+                    <td className="px-6 py-4 font-medium text-slate-900">{p.name}</td>
+
+                    <td className="px-6 py-4">
+                      <span
+                        className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${
+                          p.status === "Out of stock"
+                            ? "bg-red-50 text-red-700"
+                            : "bg-amber-50 text-amber-700"
+                        }`}
+                      >
+                        {p.status}
+                      </span>
+                    </td>
+
+                    <td className="px-6 py-4 text-slate-600">{p.stock}</td>
+                    <td className="px-6 py-4 text-slate-600">{p.reorderLevel ?? "—"}</td>
+
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="1"
+                          value={restockAmounts[p.id] || ""}
+                          onChange={(e) =>
+                            setRestockAmounts((prev) => ({ ...prev, [p.id]: e.target.value }))
+                          }
+                          placeholder="Qty"
+                          className="w-16 rounded-lg border border-slate-200 px-2 py-1 text-sm"
+                        />
+                        <button
+                          onClick={() => handleRestock(p.id)}
+                          className="cursor-pointer rounded-lg bg-indigo-600 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-700"
+                        >
+                          Restock
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+      )}
+
+      {/* =====================================================
           RECENT SALES
           ===================================================== */}
-
       {isEmployee &&(
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
 
@@ -620,8 +793,6 @@ const normalizedPaymentBreakdown = paymentBreakdown.reduce(
 
       </div>
       )}
-
-     
 
       {/* =====================================================
           TOP SELLING PRODUCTS

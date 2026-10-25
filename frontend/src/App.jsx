@@ -26,9 +26,18 @@ import KhaltiVerify from "./components/KhaltiVerify";
 
 function App() {
 
-  
-  // Keeps track of which page the user is viewing
-  const [currentPage, setCurrentPage] = useState("home"); //useState() is a React Hook that must be called inside component function
+  const [currentPage, setCurrentPage] = useState(() => {
+  const savedRole = localStorage.getItem("customer_role");
+  const savedToken = localStorage.getItem("access_token");
+
+  // Admins and employees who are still logged in go straight back to the dashboard
+  if (savedToken && (savedRole === "admin" || savedRole === "employee")) {
+    return "dashboard";
+  }
+
+  return "home";
+  });
+   //useState() is a React Hook that must be called inside component function
 
   const [userRole, setUserRole] = useState(
   localStorage.getItem("customer_role")
@@ -297,6 +306,7 @@ const handleLoginSuccess = async (role) => {
     role === "admin" ||
     role === "employee"
   ) {
+    localStorage.removeItem("dashboard_section"); // every fresh login starts at Overview
     setCurrentPage("dashboard");
     return;
   }

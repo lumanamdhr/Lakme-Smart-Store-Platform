@@ -29,8 +29,6 @@ function Intelligence() {
   // Error message
   const [message, setMessage] = useState("");
 
-  //how much to add stock
-  const [restockAmounts, setRestockAmounts] = useState({});
 
   // =========================================================
   // FETCH INTELLIGENCE DATA
@@ -108,46 +106,6 @@ function Intelligence() {
 
     }
   };
-
-
-  const handleRestock = async (productId) => {
-
-  const quantity = Number(restockAmounts[productId]);
-
-  if (!quantity || quantity <= 0) {
-    alert("Enter a quantity greater than zero.");
-    return;
-  }
-
-  try {
-    const token = localStorage.getItem("access_token");
-
-    const response = await fetch(
-      `http://127.0.0.1:8000/products/${productId}/restock`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ quantity }),
-      }
-    );
-
-    if (!response.ok) {
-      const data = await response.json();
-      alert(data.detail || "Unable to restock.");
-      return;
-    }
-
-    setRestockAmounts((prev) => ({ ...prev, [productId]: "" }));
-    fetchIntelligence(); // refresh so the table reflects new stock
-
-  } catch (error) {
-    console.error("Restock error:", error);
-    alert("Unable to connect to server.");
-  }
-};
 
   // =========================================================
   // LOAD DATA
@@ -554,150 +512,6 @@ function Intelligence() {
 
       </section>
 */}
-
-      {/* =====================================================
-          INVENTORY INTELLIGENCE
-          ===================================================== */}
-
-      <section>
-
-        <div className="mb-5">
-
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-red-600">
-            Inventory Intelligence
-          </p>
-
-          <h2 className="mt-2 text-2xl font-semibold text-slate-900">
-            Restocking Recommendations
-          </h2>
-
-          <p className="mt-1 text-sm text-slate-500">
-            Products that require attention based on current
-            stock and reorder levels.
-          </p>
-
-        </div>
-
-
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-
-          <div className="overflow-x-auto">
-
-            <table className="min-w-full text-sm">
-
-              <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
-
-                <tr>
-
-                  <th className="px-6 py-4 font-semibold">
-                    Product
-                  </th>
-
-                  <th className="px-6 py-4 font-semibold">
-                    Current Stock
-                  </th>
-
-                  <th className="px-6 py-4 font-semibold">
-                    Reorder Level
-                  </th>
-
-                  <th className="px-6 py-4 font-semibold">
-                    Suggested Reorder
-                  </th>
-
-                  <th className="px-6 py-4 font-semibold">
-                    Priority
-                  </th>
-
-                  <th className="px-6 py-4 font-semibold">
-                    Restock
-                  </th>
-
-                </tr>
-
-              </thead>
-
-
-              <tbody className="divide-y divide-slate-100">
-
-                {inventory.reorder_recommendations
-                  .map((product) => (
-                    
-
-                    <tr
-                      key={product.product_id}
-                      className="transition hover:bg-slate-50"
-                    >
-
-                      <td className="px-6 py-4 font-medium text-slate-900">
-                        {product.product_name}
-                      </td>
-
-                      <td className="px-6 py-4 text-slate-600">
-                        {product.current_stock}
-                      </td>
-
-                      <td className="px-6 py-4 text-slate-600">
-                        {product.reorder_level}
-                      </td>
-
-                      <td className="px-6 py-4 font-semibold text-slate-900">
-                        {product.suggested_reorder}
-                      </td>
-
-                      <td className="px-6 py-4">
-
-                        <span
-                          className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${
-                            product.priority === "High"
-                              ? "bg-red-50 text-red-700"
-                              : "bg-amber-50 text-amber-700"
-                          }`}
-                        >
-
-                          {product.priority}
-
-                        </span>
-
-                      </td>
-                    
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="number"
-                            min="1"
-                            value={restockAmounts[product.product_id] || ""}
-                            onChange={(e) =>
-                              setRestockAmounts((prev) => ({
-                                ...prev,
-                                [product.product_id]: e.target.value,
-                              }))
-                            }
-                            placeholder="Qty"
-                            className="w-16 rounded-lg border border-slate-200 px-2 py-1 text-sm"
-                          />
-                          <button
-                            onClick={() => handleRestock(product.product_id)}
-                            className="rounded-lg bg-indigo-600 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-700"
-                          >
-                            Restock
-                          </button>
-                        </div>
-                      </td>
-
-                    </tr>
-
-                  ))}
-
-              </tbody>
-
-            </table>
-
-          </div>
-
-        </div>
-
-      </section>
 
        {/* =====================================================
           SALES + CUSTOMER INTELLIGENCE

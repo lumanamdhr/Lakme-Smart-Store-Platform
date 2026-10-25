@@ -12,7 +12,7 @@ import {
   Save,
 } from "lucide-react";
 
-function Inventory({ role }) {
+function Inventory({ role, initialSearch = "" }) {
   const [products, setProducts] = useState([]);
 
   const [inventoryDetails, setInventoryDetails] =
@@ -22,7 +22,7 @@ function Inventory({ role }) {
   const [message, setMessage] = useState("");
 
   // Search
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState(initialSearch);
 
   // Category
   const [selectedCategory, setSelectedCategory] =

@@ -20,10 +20,16 @@ import UserManangement from "../Users";
 
 function DashboardLayout({ role }) {
 
-  const [activeSection, setActiveSection] =
-    useState("Overview");
+  const [activeSection, setActiveSection] = useState(
+    () => localStorage.getItem("dashboard_section") || "Overview"
+  );
 
-  const [searchTerm, setSearchTerm] =
+  // Remember the section so a reload returns here
+  useEffect(() => {
+    localStorage.setItem("dashboard_section", activeSection);
+  }, [activeSection]);
+     // Product picked in the header search; Inventory opens filtered to it
+  const [inventorySearch, setInventorySearch] =
     useState("");
 
   const [inventory, setInventory] =
@@ -124,7 +130,10 @@ function DashboardLayout({ role }) {
       <DashboardSidebar
         role={role}
         activeSection={activeSection}
-        onSectionChange={setActiveSection}
+        onSectionChange={(section) => {
+          setInventorySearch(""); // clicking the sidebar clears any picked product
+          setActiveSection(section);
+   }}
       />
 
 
@@ -167,9 +176,12 @@ function DashboardLayout({ role }) {
             window.location.reload();
 
           }}
-
-          searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
+            onNavigate={setActiveSection}
+            onSelectProduct={(product) => {
+                setInventorySearch(product.name);
+                setActiveSection("Inventory");
+              }}   
+          
         />
 
 
@@ -331,7 +343,11 @@ function DashboardLayout({ role }) {
 
           {activeSection === "Inventory" && (
 
-            <Inventory role={role} />
+              <Inventory
+                role={role}
+                key={inventorySearch}
+                initialSearch={inventorySearch}
+              />
 
           )}
 

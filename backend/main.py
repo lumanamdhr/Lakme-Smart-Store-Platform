@@ -1050,7 +1050,12 @@ def inventory_details(
 def get_sales(
     db: Session = Depends(get_db),
     current_user: Customer = Depends(get_current_user)
-):
+):    
+    if current_user.role not in ["admin", "employee"]:
+        raise HTTPException(
+            status_code=403, 
+            detail="Only administrators and employees can view all sales."
+            )
     sales = (
         db.query(Sale)
         .order_by(Sale.created_at.desc())
