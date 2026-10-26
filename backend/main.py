@@ -8,13 +8,16 @@ from fastapi.staticfiles import StaticFiles
 import os
 import uuid
 import time
+import secrets
 from pathlib import Path
 
 from pydantic import BaseModel
 from jose import jwt
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime, timezone
 
-from emailer import send_password_reset_email
+from google.oauth2 import id_token as google_id_token
+from google.auth.transport import requests as google_requests
+from emailer import send_password_reset_email, send_verification_email
 from khalti import initiate_khalti_payment, lookup_khalti_payment
 from pricing import get_effective_price
 from chatbot import get_response
@@ -43,6 +46,9 @@ from schemas import (
     ResetPasswordRequest,
     ChatRequest,
     ChatResponse,
+    VerifyEmailRequest,
+    ResendCodeRequest,
+    GoogleLoginRequest
     )
 from security import (
     hash_password, 
@@ -499,45 +505,142 @@ def get_cart_count(
     }
 
 #Customer
-@app.post("/customers", response_model=CustomerResponse) #accepts post request
+VERIFICATION_MINUTES = 10
+MAX_VERIFICATION_ATTEMPTS = 5
+RESEND_COOLDOWN_SECONDS = 60
+
+
+def utc_now():
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def issue_verification_code(customer):
+    # `secrets` is built for security; `random` is not
+    code = f"{secrets.randbelow(1_000_000):06d}"
+    customer.verification_code = hash_password(code)  # stored hashed, like a password
+    customer.verification_expires = utc_now() + timedelta(minutes=VERIFICATION_MINUTES)
+    customer.verification_attempts = 0
+    return code  # the plain code, only ever emailed
+
+
+@app.post("/customers", response_model=CustomerResponse)
 def create_customer(
-    customer: CustomerCreate, #FastAPI expects data matching
+    customer: CustomerCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
     existing_customer = (
         db.query(Customer)
-        .filter(Customer.email == customer.email)
+        .filter(func.lower(Customer.email) == customer.email.strip().lower())
         .first()
     )
 
-    if existing_customer:
-        raise HTTPException(
-            status_code=400,
-            detail="Email already registered"
-        )
+    if existing_customer and existing_customer.is_verified:
+        raise HTTPException(status_code=400, detail="Email already registered")
 
     hashed_password = hash_password(customer.password)
+    calculated_age = calculate_age(customer.date_of_birth)
 
-    calculated_age = calculate_age(
-        customer.date_of_birth
-    )
+    if existing_customer:
+        # Signed up before but never verified: let them start over with the new details
+        new_customer = existing_customer
+        new_customer.name = customer.name
+        new_customer.password = hashed_password
+        new_customer.age = calculated_age
+        new_customer.date_of_birth = customer.date_of_birth
+        new_customer.gender = customer.gender
+        new_customer.location = customer.location
+    else:
+        new_customer = Customer(
+            name=customer.name,
+            email=customer.email.strip(),
+            password=hashed_password,
+            role="customer",
+            age=calculated_age,
+            date_of_birth=customer.date_of_birth,
+            gender=customer.gender,
+            location=customer.location,
+            is_verified=False,
+        )
+        db.add(new_customer)
 
-    new_customer = Customer(
-        name=customer.name,
-        email=customer.email,
-        password=hashed_password,
-        role="customer",
-        age=calculated_age,
-        date_of_birth=customer.date_of_birth,
-        gender=customer.gender,
-        location=customer.location
-    )
-
-    db.add(new_customer)
+    code = issue_verification_code(new_customer)
     db.commit()
     db.refresh(new_customer)
 
+    background_tasks.add_task(
+        send_verification_email, new_customer.email, new_customer.name, code
+    )
+
     return new_customer
+
+#verify-email
+@app.post("/verify-email")
+def verify_email(payload: VerifyEmailRequest, db: Session = Depends(get_db)):
+    customer = (
+        db.query(Customer)
+        .filter(func.lower(Customer.email) == payload.email.strip().lower())
+        .first()
+    )
+
+    if customer is None:
+        raise HTTPException(status_code=400, detail="Invalid or expired code.")
+
+    if customer.is_verified:
+        return {"message": "Email already verified. You can log in."}
+
+    if not customer.verification_code or not customer.verification_expires \
+            or utc_now() > customer.verification_expires:
+        raise HTTPException(status_code=400, detail="This code has expired. Please request a new one.")
+
+    if customer.verification_attempts >= MAX_VERIFICATION_ATTEMPTS:
+        raise HTTPException(status_code=429, detail="Too many wrong attempts. Please request a new code.")
+
+    if not verify_password(payload.code.strip(), customer.verification_code):
+        customer.verification_attempts += 1
+        db.commit()
+        raise HTTPException(status_code=400, detail="Incorrect code.")
+
+    customer.is_verified = True
+    customer.verification_code = None
+    customer.verification_expires = None
+    customer.verification_attempts = 0
+    db.commit()
+
+    return {"message": "Email verified. You can now log in."}
+
+#resend verification code
+@app.post("/resend-verification")
+def resend_verification(
+    payload: ResendCodeRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    generic = {"message": "If this account needs verification, a new code has been sent."}
+
+    customer = (
+        db.query(Customer)
+        .filter(func.lower(Customer.email) == payload.email.strip().lower())
+        .first()
+    )
+
+    if customer is None or customer.is_verified:
+        return generic
+
+    # Cooldown: a code is issued exactly VERIFICATION_MINUTES before it expires
+    if customer.verification_expires:
+        last_sent = customer.verification_expires - timedelta(minutes=VERIFICATION_MINUTES)
+        if utc_now() < last_sent + timedelta(seconds=RESEND_COOLDOWN_SECONDS):
+            raise HTTPException(status_code=429, detail="Please wait a minute before requesting another code.")
+
+    code = issue_verification_code(customer)
+    db.commit()
+
+    background_tasks.add_task(
+        send_verification_email, customer.email, customer.name, code
+    )
+
+    return generic
 
 #login customer
 @app.post("/login")
@@ -567,6 +670,8 @@ def login(
             status_code=401,
             detail="Invalid email or password"
         )
+    if not existing_customer.is_verified:
+     raise HTTPException(status_code=403, detail="EMAIL_NOT_VERIFIED")
     
     access_token = create_access_token(
     data={
@@ -584,6 +689,73 @@ def login(
         "email": existing_customer.email,
         "role": existing_customer.role
     }
+
+#goohle login part
+@app.post("/auth/google")
+def google_login(payload: GoogleLoginRequest, db: Session = Depends(get_db)):
+    google_client_id = os.getenv("GOOGLE_CLIENT_ID")
+
+    try:
+        # Checks Google's signature, that the token hasn't expired,
+        # and that it was issued for OUR app (our Client ID)
+        google_info = google_id_token.verify_oauth2_token(
+            payload.credential,
+            google_requests.Request(),
+            google_client_id,
+            clock_skew_in_seconds=10,
+        )
+    except ValueError:
+        raise HTTPException(status_code=401, detail="Google sign-in failed. Please try again.")
+
+    if not google_info.get("email_verified"):
+        raise HTTPException(status_code=401, detail="Your Google email is not verified.")
+
+    email = google_info["email"].strip().lower()
+    name = google_info.get("name") or email.split("@")[0]
+
+    customer = (
+        db.query(Customer)
+        .filter(func.lower(Customer.email) == email)
+        .first()
+    )
+
+    if customer is None:
+        # First time with Google: create the account.
+        # The random password is never shown to anyone, so password login can't be used.
+        customer = Customer(
+            name=name,
+            email=email,
+            password=hash_password(secrets.token_urlsafe(32)),
+            role="customer",
+            is_verified=True,
+        )
+        db.add(customer)
+        db.commit()
+        db.refresh(customer)
+
+    elif not customer.is_verified:
+        # Google has proven this person owns the email.
+        # Replace the password too, in case someone else signed up with this email first.
+        customer.is_verified = True
+        customer.verification_code = None
+        customer.verification_expires = None
+        customer.password = hash_password(secrets.token_urlsafe(32))
+        db.commit()
+
+    access_token = create_access_token(
+        data={"sub": str(customer.id), "role": customer.role}
+    )
+
+    return {
+        "message": "Login successful",
+        "access_token": access_token,
+        "token_type": "bearer",
+        "customer_id": customer.id,
+        "name": customer.name,
+        "email": customer.email,
+        "role": customer.role,
+    }
+
 @app.post("/forgot-password")
 def forgot_password(
     request: ForgotPasswordRequest,

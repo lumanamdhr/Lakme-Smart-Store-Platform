@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowLeft,
   Eye,
@@ -6,7 +6,10 @@ import {
   UserPlus,
   LogIn,
   KeyRound,
+  Mail,
 } from "lucide-react";
+   import GoogleSection from "./GoogleSection";
+
 
 function Auth({
   onBack,
@@ -31,6 +34,18 @@ function Auth({
 
   // Forgot password
   const [forgotEmail, setForgotEmail] = useState("");
+
+  // Email verification (a code is sent once, at signup)
+  const [verifyEmail, setVerifyEmail] = useState("");
+  const [verifyCode, setVerifyCode] = useState("");
+  const [resendSeconds, setResendSeconds] = useState(0);
+
+     // Counts down the "Resend code" cooldown
+     useEffect(() => {
+       if (resendSeconds <= 0) return;
+       const timer = setTimeout(() => setResendSeconds((s) => s - 1), 1000);
+       return () => clearTimeout(timer);
+     }, [resendSeconds]);
 
   // Password visibility
   const [showPassword, setShowPassword] = useState(false);
@@ -224,6 +239,120 @@ function Auth({
     return Object.keys(newErrors).length === 0;
   };
 
+  //verification process
+       const goToVerify = (email) => {
+       setVerifyEmail(email);
+       setVerifyCode("");
+       setErrors({});
+       setMode("verify");
+       setResendSeconds(60);
+       setMessage(`We sent a 6-digit code to ${email}. Enter it below to verify your email.`);
+       setMessageType("success");
+     };
+
+     const requestNewCode = async (email) => {
+       try {
+         await fetch("http://127.0.0.1:8000/resend-verification", {
+           method: "POST",
+           headers: { "Content-Type": "application/json" },
+           body: JSON.stringify({ email }),
+         });
+       } catch (error) {
+         console.error("Resend code error:", error);
+       }
+     };
+
+     const handleVerify = async (event) => {
+       event.preventDefault();
+       setMessage("");
+       setMessageType("");
+
+       if (!/^\d{6}$/.test(verifyCode.trim())) {
+         setMessage("Please enter the 6-digit code.");
+         setMessageType("error");
+         return;
+       }
+
+       setLoading(true);
+
+       try {
+         const response = await fetch("http://127.0.0.1:8000/verify-email", {
+           method: "POST",
+           headers: { "Content-Type": "application/json" },
+           body: JSON.stringify({ email: verifyEmail, code: verifyCode.trim() }),
+         });
+         const data = await response.json();
+
+         if (!response.ok) {
+           setMessage(typeof data.detail === "string" ? data.detail : "Verification failed.");
+           setMessageType("error");
+           return;
+         }
+
+         setLoginEmail(verifyEmail);
+         setVerifyCode("");
+         setMode("login");
+         setMessage("Email verified! You can now log in.");
+         setMessageType("success");
+       } catch (error) {
+         console.error("Verify error:", error);
+         setMessage("Unable to connect to the server.");
+         setMessageType("error");
+       } finally {
+         setLoading(false);
+       }
+     };
+
+     const handleResend = async () => {
+       if (resendSeconds > 0) return;
+       await requestNewCode(verifyEmail);
+       setResendSeconds(60);
+       setMessage("A new code has been sent. Please check your email.");
+       setMessageType("success");
+     };
+
+
+       const handleGoogleLogin = async (credential) => {
+       setMessage("");
+       setMessageType("");
+       setLoading(true);
+
+       try {
+         const response = await fetch("http://127.0.0.1:8000/auth/google", {
+           method: "POST",
+           headers: { "Content-Type": "application/json" },
+           body: JSON.stringify({ credential }),
+         });
+         const data = await response.json();
+
+         if (!response.ok) {
+           setMessage(typeof data.detail === "string" ? data.detail : "Google sign-in failed.");
+           setMessageType("error");
+           return;
+         }
+
+         // Same saved info as a normal login
+         localStorage.setItem("access_token", data.access_token);
+         localStorage.setItem("customer_id", data.customer_id);
+         localStorage.setItem("customer_name", data.name);
+         localStorage.setItem("customer_email", data.email);
+         localStorage.setItem("customer_role", data.role);
+
+         setMessage("Login successful.");
+         setMessageType("success");
+
+         setTimeout(() => {
+           onLoginSuccess(data.role);
+         }, 500);
+       } catch (error) {
+         console.error("Google login error:", error);
+         setMessage("Unable to connect to the server.");
+         setMessageType("error");
+       } finally {
+         setLoading(false);
+       }
+     };
+
   // --------------------------------------------------
   // LOGIN
   // --------------------------------------------------
@@ -269,6 +398,12 @@ function Auth({
       const data = await response.json();
 
       if (!response.ok) {
+        // Right password, but the email was never verified: send a fresh code
+           if (response.status === 403 && data.detail === "EMAIL_NOT_VERIFIED") {
+             await requestNewCode(loginEmail.trim());
+             goToVerify(loginEmail.trim());
+             return;
+           }
         const errorMessage =
           typeof data.detail === "string"
             ? data.detail
@@ -382,23 +517,9 @@ function Auth({
         return;
       }
 
-      setMessage(
-        "Account created successfully. Please log in."
-      );
-
-      setMessageType("success");
-
-      // Move email to login
-      setLoginEmail(
-        signupEmail.trim()
-      );
-
-      setTimeout(() => {
-        setMode("login");
-        setMessage("");
-        setErrors({});
-      }, 1200);
-
+    // Account created: ask for the code that was just emailed
+    goToVerify(signupEmail.trim());
+      
     } catch (error) {
       console.error("Signup error:", error);
 
@@ -548,6 +669,8 @@ function Auth({
                   ? "Welcome"
                   : mode === "signup"
                   ? "Create Your Account"
+                  : mode === "verify"
+                  ? "Verify Your Email"
                   : "Forgot Password"}
 
               </h2>
@@ -558,6 +681,8 @@ function Auth({
                   ? "Log in to continue your beauty journey."
                   : mode === "signup"
                   ? "Create your account and discover more from Lakmé."
+                  : mode === "verify"
+                  ? "Enter the 6-digit code we emailed you."
                   : "Enter your registered email address to reset your password."}
 
               </p>
@@ -565,7 +690,7 @@ function Auth({
             </div>
 
             {/* Login / Signup switch */}
-            {mode !== "forgot" && (
+            {mode !== "forgot" && mode !== "verify" && (
               <div className="mx-auto mt-8 flex max-w-sm rounded-full bg-stone-100 p-1">
 
                 <button
@@ -599,7 +724,7 @@ function Auth({
                 </button>
 
               </div>
-            )}
+        )}
 
             {/* Messages */}
             {message && (
@@ -612,6 +737,69 @@ function Auth({
               >
                 {message}
               </div>
+            )}
+
+                {/* ================================================= */}
+                {/* VERIFY EMAIL FORM */}
+                {/* ================================================= */}
+
+            {mode === "verify" && (
+                 <form
+                   onSubmit={handleVerify}
+                   className="mx-auto mt-8 max-w-sm space-y-5"
+                 >
+                   <div className="flex justify-center">
+                     <div className="flex h-14 w-14 items-center justify-center rounded-full bg-rose-50 text-rose-600">
+                       <Mail size={25} />
+                     </div>
+                   </div>
+
+                   <div>
+                     <label className="mb-2 block text-sm font-medium text-gray-700">
+                       Verification code
+                     </label>
+
+                     <input
+                       type="text"
+                       inputMode="numeric"
+                       maxLength={6}
+                       value={verifyCode}
+                       onChange={(event) =>
+                         setVerifyCode(event.target.value.replace(/\D/g, ""))
+                       }
+                       autoComplete="one-time-code"
+                       placeholder="000000"
+                       className="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-center text-2xl tracking-[0.5em] text-gray-800 outline-none transition focus:border-rose-300 focus:bg-white"
+                     />
+                   </div>
+
+                   <button
+                     type="submit"
+                     disabled={loading}
+                     className="w-full cursor-pointer rounded-full bg-gray-900 py-3.5 text-sm font-semibold text-white transition hover:bg-rose-600 disabled:cursor-not-allowed disabled:bg-gray-300"
+                   >
+                     {loading ? "Verifying..." : "Verify Email"}
+                   </button>
+
+                   <button
+                     type="button"
+                     onClick={handleResend}
+                     disabled={resendSeconds > 0}
+                     className="w-full cursor-pointer text-sm font-medium text-gray-500 hover:text-rose-600 disabled:cursor-not-allowed disabled:text-gray-300"
+                   >
+                     {resendSeconds > 0
+                       ? `Resend code in ${resendSeconds}s`
+                       : "Resend code"}
+                   </button>
+
+                   <button
+                     type="button"
+                     onClick={() => switchMode("login")}
+                     className="w-full cursor-pointer text-sm font-medium text-gray-500 hover:text-rose-600"
+                   >
+                     ← Back to Login
+                   </button>
+                 </form>
             )}
 
             {/* ================================================= */}
@@ -736,7 +924,7 @@ function Auth({
                     ? "Logging in..."
                     : "Login"}
                 </button>
-
+              <GoogleSection onCredential={handleGoogleLogin} />
               </form>
             )}
 
@@ -1083,7 +1271,7 @@ function Auth({
                     ? "Creating Account..."
                     : "Create Account"}
                 </button>
-
+              <GoogleSection onCredential={handleGoogleLogin} />
               </form>
             )}
 

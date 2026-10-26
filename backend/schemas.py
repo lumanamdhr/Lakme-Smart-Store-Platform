@@ -137,8 +137,15 @@ class RestockRequest(BaseModel):
 #forgot password
 class ForgotPasswordRequest(BaseModel):
     email: str
+class VerifyEmailRequest(BaseModel):
+    email: str
+    code: str
 
+class GoogleLoginRequest(BaseModel):
+    credential: str
 
+class ResendCodeRequest(BaseModel):
+    email: str
 class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str

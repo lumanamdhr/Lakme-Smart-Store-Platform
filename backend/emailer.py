@@ -98,3 +98,25 @@ def send_password_reset_email(to_email, customer_name, reset_link):
     """
 
     return send_email(to_email, subject, text_body, html_body)
+
+def send_verification_email(to_email, customer_name, code):
+    name = html.escape(customer_name)
+
+    subject = "Your Lakmé verification code"
+
+    text_body = (
+        f"Hi {customer_name},\n\n"
+        f"Your verification code is: {code}\n\n"
+        "It expires in 10 minutes. If you didn't create an account, you can ignore this email.\n"
+    )
+
+    html_body = f"""
+    <div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;color:#111827">
+      <h1 style="font-family:Georgia,serif;font-style:italic;letter-spacing:3px">LAKMÉ</h1>
+      <p>Hi {name}, use this code to verify your email:</p>
+      <p style="font-size:32px;font-weight:bold;letter-spacing:8px;background:#f5f5f4;padding:16px;text-align:center;border-radius:12px">{code}</p>
+      <p style="font-size:12px;color:#6b7280">This code expires in 10 minutes. If you didn't create an account, you can ignore this email.</p>
+    </div>
+    """
+
+    return send_email(to_email, subject, text_body, html_body)

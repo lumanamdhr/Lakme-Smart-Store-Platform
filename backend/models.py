@@ -76,6 +76,11 @@ class Customer(Base): #creates database model called customer
         nullable=True
     )
     date_of_birth = Column(Date, nullable=True)
+    # Email verification (a code is emailed once, at signup)
+    is_verified = Column(Boolean, nullable=False, default=True)
+    verification_code = Column(String(255), nullable=True)
+    verification_expires = Column(DateTime, nullable=True)
+    verification_attempts = Column(Integer, nullable=False, default=0)
 
 class Sale(Base):
     __tablename__ = "sales"
