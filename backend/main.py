@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form #depends tell before running API, the other thing is needed first
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks #depends tell before running API, the other thing is needed first
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import text, func, case #execute raw SQL text through sqlalchemy interface
@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from jose import jwt
 from datetime import date, timedelta
 
+from emailer import send_password_reset_email
 from khalti import initiate_khalti_payment, lookup_khalti_payment
 from pricing import get_effective_price
 from chatbot import get_response
@@ -586,38 +587,34 @@ def login(
 @app.post("/forgot-password")
 def forgot_password(
     request: ForgotPasswordRequest,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
+    generic_message = "If an account with this email exists, a password reset link has been sent."
+
     customer = (
         db.query(Customer)
-        .filter(Customer.email == request.email.strip())
+        .filter(func.lower(Customer.email) == request.email.strip().lower())
         .first()
     )
 
-    # Do not reveal whether an email exists
+    # Same answer whether or not the email exists, so nobody can probe for accounts
     if customer is None:
-        return {
-            "message": "If an account with this email exists, a password reset link has been generated."
-        }
+        return {"message": generic_message}
 
-    # Create a short-lived reset token
     reset_token = create_access_token(
-        data={
-            "sub": str(customer.id),
-            "purpose": "password_reset"
-        },
+        data={"sub": str(customer.id), "purpose": "password_reset"},
         expires_delta=timedelta(minutes=15)
     )
 
-    # Development link
-    reset_link = (
-        f"http://localhost:5173/reset-password?token={reset_token}"
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+    reset_link = f"{frontend_url}/reset-password?token={reset_token}"
+
+    background_tasks.add_task(
+        send_password_reset_email, customer.email, customer.name, reset_link
     )
 
-    return {
-        "message": "Password reset link generated successfully.",
-        "reset_link": reset_link
-    }
+    return {"message": generic_message}  # the link is no longer returned to the browser
 
 @app.post("/reset-password")
 def reset_password(
