@@ -1,6 +1,7 @@
 import { ArrowLeft, ShoppingBag, Plus, Minus } from "lucide-react";
 import { useState, useEffect } from "react";
 import ProductCard from "./ProductCard";
+import WishlistButton from "./WishlistButton";
 
 function ProductDetails({
   product,
@@ -66,8 +67,8 @@ function ProductDetails({
         <div className="grid overflow-hidden rounded-3xl bg-white shadow-sm lg:grid-cols-2">
 
           {/* Image */}
-          <div className="flex min-h-[300px] items-center justify-center bg-stone-50 p-6">
-
+          <div className="flex min-h-[300px] items-center justify-center bg-stone-50 p-6 relative">
+            <WishlistButton product={product} className="absolute right-4 top-4" />
             <img
               src={`http://127.0.0.1:8000${product.image}`}
               alt={product.name}

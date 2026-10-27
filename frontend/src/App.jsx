@@ -23,6 +23,9 @@ import Auth from "./components/Auth";
 import ResetPassword from "./components/ResetPassword";
 import ChatWidget from "./components/ChatWidget";
 import KhaltiVerify from "./components/KhaltiVerify";
+import { WishlistProvider } from "./components/WishlistContext";
+import Wishlist from "./components/Wishlist";
+
 
 function App() {
 
@@ -467,9 +470,12 @@ if (showKhaltiVerify) {
   );
 }
 
-return (
-    <div className="min-h-screen bg-white text-gray-900">
-
+   return (
+     <WishlistProvider
+       isLoggedIn={isLoggedIn}
+       onLoginRequired={() => setCurrentPage("auth")}
+     >
+       <div className="min-h-screen bg-white text-gray-900">
       {/* Navigation */}
       {currentPage !== "dashboard" && (
       <Navbar
@@ -486,6 +492,10 @@ return (
         onSearchChange={setSearchTerm}
         currentPage={currentPage}
         shopView={shopView}
+        onWishlistClick={() => {
+          setCurrentPage("wishlist");
+          window.scrollTo({ top: 0 });
+   }}
       />
       )}
 
@@ -547,6 +557,14 @@ return (
           onViewDetails={handleViewDetails}
         />
       )}
+          {currentPage === "wishlist" && (
+           <Wishlist
+             onAddToCart={handleAddToCart}
+             onViewDetails={handleViewDetails}
+             onShopClick={() => openShop()}
+             onLoginClick={() => setCurrentPage("auth")}
+           />
+          )}
 
       {/*shows shop page */}
       {currentPage === "shop" && (
@@ -661,6 +679,7 @@ return (
       /> */}
 
     </div>
+    </WishlistProvider>
   );
 }
 

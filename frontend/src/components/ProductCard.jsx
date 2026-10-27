@@ -1,4 +1,5 @@
 import { Eye, ShoppingBag } from "lucide-react";
+import WishlistButton from "./WishlistButton";
 
 function ProductCard({
   product,
@@ -22,6 +23,9 @@ function ProductCard({
           {product.category}
         </span>
 
+        {/* Wishlist heart */}
+        <WishlistButton product={product} className="absolute right-4 top-4" />
+        
         {/* Hover overlay */}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-gray-900/15 to-transparent opacity-0 transition duration-500 group-hover:opacity-100" />
 

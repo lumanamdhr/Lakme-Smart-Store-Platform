@@ -4,8 +4,10 @@ import {
   User,
   ShoppingCart,
   ChevronDown,
+  Heart,
 } from "lucide-react";
 import ProfileDropdown from "./ProfileDropdown";
+import { useWishlist } from "./WishlistContext";
 
 /* =========================================================
    CATEGORY MENU
@@ -64,6 +66,7 @@ function Navbar({ //props that works when clicked
   onHomeClick,
   onOpenShop,
   onViewDetails,
+  onWishlistClick,
   onSearch,
   cartCount,
   isLoggedIn,
@@ -75,6 +78,9 @@ function Navbar({ //props that works when clicked
 }) {
   // Which category dropdown is currently open (null = none)
   const [openMenu, setOpenMenu] = useState(null);
+
+  //Wishlist part
+const { count: wishlistCount } = useWishlist();
 
 //search part
 const [allProducts, setAllProducts] = useState([]);
@@ -277,6 +283,22 @@ useEffect(() => {
                 <User size={21} strokeWidth={1.8} />
               </button>
             )}
+
+               {/* Wishlist */}
+               <button
+                 onClick={onWishlistClick}
+                 className="relative cursor-pointer rounded-full p-2 text-gray-700 transition hover:bg-rose-50 hover:text-rose-600"
+                 aria-label="Wishlist"
+                 title="Wishlist"
+               >
+                 <Heart size={21} strokeWidth={1.8} />
+
+                 {wishlistCount > 0 && (
+                   <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[10px] font-semibold text-white">
+                     {wishlistCount}
+                   </span>
+                 )}
+               </button>
 
             {/* Cart */}
             <button

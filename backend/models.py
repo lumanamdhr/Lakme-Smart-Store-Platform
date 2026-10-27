@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Text, ForeignKey, DateTime, Date, Boolean
+from sqlalchemy import Column, Integer, String, Float, Text, ForeignKey, DateTime, Date, Boolean, UniqueConstraint
 from database import Base
 from datetime import datetime
 
@@ -155,4 +155,17 @@ class SaleItem(Base):
     subtotal = Column(
         Float,
         nullable=False
+    )
+
+class WishlistItem(Base):
+    __tablename__ = "wishlist_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=False)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    # A customer can save the same product only once
+    __table_args__ = (
+        UniqueConstraint("customer_id", "product_id", name="uq_wishlist_customer_product"),
     )

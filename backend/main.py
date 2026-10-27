@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import text, func, case #execute raw SQL text through sqlalchemy interface
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from fastapi.staticfiles import StaticFiles
 
 import os
@@ -23,7 +24,7 @@ from pricing import get_effective_price
 from chatbot import get_response
 from recommender import get_recommendations
 from database import engine, get_db ,Base #import engine and base we created in db.py
-from models import Product,Customer, Cart, CartItem, Sale, SaleItem
+from models import Product,Customer, Cart, CartItem, Sale, SaleItem, WishlistItem
 from schemas import (
     ProductCreate, 
     ProductResponse, 
@@ -2660,3 +2661,62 @@ def delete_admin_user(
     return {
         "message": "User deleted successfully."
     }
+
+#for wishlist
+@app.get("/wishlist", response_model=list[ProductResponse])
+def get_wishlist(
+    current_user: Customer = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    return (
+        db.query(Product)
+        .join(WishlistItem, WishlistItem.product_id == Product.id)
+        .filter(WishlistItem.customer_id == current_user.id)
+        .order_by(WishlistItem.created_at.desc())  # newest saved first
+        .all()
+    )
+
+
+@app.post("/wishlist/{product_id}")
+def add_to_wishlist(
+    product_id: int,
+    current_user: Customer = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    product = db.query(Product).filter(Product.id == product_id).first()
+    if product is None:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    already_saved = (
+        db.query(WishlistItem)
+        .filter(WishlistItem.customer_id == current_user.id, WishlistItem.product_id == product_id)
+        .first()
+    )
+
+    if already_saved is None:
+        db.add(WishlistItem(customer_id=current_user.id, product_id=product_id))
+        try:
+            db.commit()
+        except IntegrityError:
+            db.rollback()  # two quick clicks already saved it, which is fine
+
+    return {"message": "Added to wishlist"}
+
+
+@app.delete("/wishlist/{product_id}")
+def remove_from_wishlist(
+    product_id: int,
+    current_user: Customer = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    item = (
+        db.query(WishlistItem)
+        .filter(WishlistItem.customer_id == current_user.id, WishlistItem.product_id == product_id)
+        .first()
+    )
+
+    if item is not None:
+        db.delete(item)
+        db.commit()
+
+    return {"message": "Removed from wishlist"}
