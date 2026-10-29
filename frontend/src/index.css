@@ -9,8 +9,54 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* ---------- Homepage animations ---------- */
 
+/* Hero text rises in each time a slide appears */
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
+.hero-rise {
+  animation: rise-in 0.8s ease-out both;
+}
+
+/* Moving text strip: slides left by exactly one copy, so the loop has no gap */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+.marquee-track {
+  animation: marquee 35s linear infinite;
+}
+
+.marquee-track:hover {
+  animation-play-state: paused; /* pauses when the mouse is over it */
+}
+
+/* Respect visitors who turned animations off in their device settings */
+@media (prefers-reduced-motion: reduce) {
+  .hero-rise,
+  .marquee-track {
+    animation: none;
+  }
+}
+/* Slow floating motion for the hero product */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-14px); }
+}
+
+.animate-float {
+  animation: float 5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-float {
+    animation: none;
+  }
+}
 
 
 

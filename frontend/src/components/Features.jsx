@@ -4,121 +4,105 @@ import {
   Info,
   ShoppingCart,
   CreditCard,
-  Heart,
+  Sparkles,
 } from "lucide-react";
 
-function Features({ embedded = false }) {
-  const Wrapper = embedded ? "section" : "main";
-  const Heading = embedded ? "h2" : "h1";
+const features = [
+  {
+    icon: ShoppingBag,
+    title: "Easy Shopping",
+    description: "Browse beauty products easily and discover your next favorite.",
+  },
+  {
+    icon: Grid3X3,
+    title: "Category-Based Shopping",
+    description:
+      "Find products quickly through Face, Lips, Eyes and Skincare menus, or with live search.",
+  },
+  {
+    icon: Info,
+    title: "Product Details",
+    description:
+      "View descriptions, prices, discounts and availability before you buy.",
+  },
+  {
+    icon: ShoppingCart,
+    title: "Smart Cart",
+    description:
+      "Add products, adjust quantities and manage your selections, even before you log in.",
+  },
+  {
+    icon: CreditCard,
+    title: "Secure Checkout",
+    description:
+      "Pay with Khalti or choose Cash on Delivery through a simple, smooth checkout.",
+  },
+  {
+    icon: Sparkles,
+    title: "Personalized Experience",
+    description:
+      "Smart recommendations and our Lumi assistant help you find products that go well together.",
+  },
+];
 
-
-  const features = [
-    {
-      icon: ShoppingBag,
-      title: "Easy Shopping",
-      description:
-        "Browse beauty products easily and discover your next favorite.",
-      color: "bg-pink-100 text-pink-600",
-    },
-    {
-      icon: Grid3X3,
-      title: "Category-Based Shopping",
-      description:
-        "Find products quickly by exploring categories such as Face, Lips, Eyes, and Skincare.",
-      color: "bg-rose-100 text-rose-600",
-    },
-    {
-      icon: Info,
-      title: "Product Details",
-      description:
-        "View product information, descriptions, prices, and availability before purchasing.",
-      color: "bg-fuchsia-100 text-fuchsia-600",
-    },
-    {
-      icon: ShoppingCart,
-      title: "Smart Cart",
-      description:
-        "Add products to your cart, adjust quantities, and manage your selections easily.",
-      color: "bg-pink-100 text-pink-600",
-    },
-    {
-      icon: CreditCard,
-      title: "Secure Checkout",
-      description:
-        "Complete your purchase through a simple and smooth checkout experience.",
-      color: "bg-rose-100 text-rose-600",
-    },
-    {
-      icon: Heart,
-      title: "Personalized Experience",
-      description:
-        "Customer buying patterns help create a more relevant and enjoyable shopping experience.",
-      color: "bg-fuchsia-100 text-fuchsia-600",
-    },
-  ];
-
+function FeaturesSection() {
   return (
-    <Wrapper className={`${embedded ? "" : "min-h-screen "}bg-gradient-to-br from-pink-50 via-white to-rose-50 px-6 py-16`}>
+    <section className="relative overflow-hidden bg-gradient-to-br from-pink-50 via-white to-rose-50 px-6 py-20 lg:px-10">
+      {/* Soft background glows */}
+      <div className="absolute -left-32 top-20 h-80 w-80 rounded-full bg-rose-200/40 blur-3xl" />
+      <div className="absolute -right-32 bottom-10 h-80 w-80 rounded-full bg-amber-100/60 blur-3xl" />
 
-      <div className="mx-auto max-w-6xl">
-
-        {/* Header */}
+      <div className="relative mx-auto max-w-7xl">
+        {/* Heading */}
         <div className="mx-auto max-w-3xl text-center">
-
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-pink-600">
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-rose-600">
             Our Features
           </p>
-
-          <Heading className="mt-5 text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl">
+          <h2 className="mt-4 text-3xl font-semibold tracking-tight text-gray-900 sm:text-4xl">
             A simpler way to explore beauty.
-          </Heading>
-
-          <p className="mt-5 text-sm leading-7 text-slate-600 sm:text-base">
-            Everything is designed to make discovering, choosing,
-            and purchasing your favorite beauty products easier.
+          </h2>
+          <p className="mt-4 text-sm leading-7 text-gray-500 sm:text-base">
+            Everything is designed to make discovering, choosing and purchasing
+            your favorite beauty products easier.
           </p>
-
         </div>
 
-
-        {/* Feature cards */}
+        {/* Cards */}
         <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-
-          {features.map((feature) => {
-
+          {features.map((feature, index) => {
             const Icon = feature.icon;
 
             return (
               <div
                 key={feature.title}
-                className="rounded-3xl border border-pink-100 bg-white p-7 shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-lg"
+                className="group relative overflow-hidden rounded-3xl border border-rose-100 bg-white/80 p-8 shadow-sm backdrop-blur transition duration-500 hover:-translate-y-2 hover:shadow-2xl hover:shadow-rose-200/60"
               >
+                {/* Big faint number */}
+                <span className="absolute right-6 top-4 text-7xl font-bold text-rose-50 transition duration-500 group-hover:text-rose-100">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
 
-                <div
-                  className={`flex h-12 w-12 items-center justify-center rounded-2xl ${feature.color}`}
-                >
-                  <Icon size={22} />
+                <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-500 to-pink-400 text-white shadow-lg shadow-rose-300/50 transition duration-500 group-hover:rotate-6 group-hover:scale-110">
+                  <Icon size={24} strokeWidth={1.8} />
                 </div>
 
-                <h2 className="mt-6 text-lg font-semibold text-slate-900">
+                <h3 className="relative mt-6 text-lg font-semibold text-gray-900">
                   {feature.title}
-                </h2>
+                </h3>
 
-                <p className="mt-3 text-sm leading-6 text-slate-500">
+                <p className="relative mt-2 text-sm leading-6 text-gray-500">
                   {feature.description}
                 </p>
 
+                {/* Accent line that grows on hover */}
+                <div className="absolute bottom-0 left-0 h-1 w-0 bg-gradient-to-r from-rose-500 to-amber-300 transition-all duration-500 group-hover:w-full" />
               </div>
             );
-
           })}
-
         </div>
-
       </div>
-
-    </Wrapper>
+    </section>
   );
 }
 
-export default Features;
+export default FeaturesSection;

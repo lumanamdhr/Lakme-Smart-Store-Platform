@@ -32,7 +32,7 @@ function CategorySection({ onCategoryClick }) {
   ];
 
   return (
-    <section className="bg-rose-50 px-6 py-20 lg:px-10">
+    <section className=" px-6 py-20 lg:px-10">
       <div className="mx-auto max-w-7xl">
 
         {/* Section heading */}

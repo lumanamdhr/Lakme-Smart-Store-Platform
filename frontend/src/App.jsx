@@ -25,7 +25,7 @@ import ChatWidget from "./components/ChatWidget";
 import KhaltiVerify from "./components/KhaltiVerify";
 import { WishlistProvider } from "./components/WishlistContext";
 import Wishlist from "./components/Wishlist";
-
+import Marquee from "./components/Marquee";
 
 function App() {
 
@@ -504,15 +504,17 @@ if (showKhaltiVerify) {
         <>
           <Hero />
 
+          <Marquee />
+
           <div id="categories" className="scroll-mt-32">
             <CategorySection
               onCategoryClick={(category) => openShop({ category })}
             />
           </div>
 
-             <OfferSection
+          {/** <OfferSection
             onCreateAccount={() => setCurrentPage("auth")}
-          />
+          />*/} 
 
           <ProductSection
              onAddToCart={handleAddToCart}
@@ -530,6 +532,7 @@ if (showKhaltiVerify) {
             <About embedded />
           </div>
               */}
+
           {/* Why Shop With Us */}
           <BenefitsSection />
           
